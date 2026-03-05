@@ -27,7 +27,17 @@ class StableDataModuleFromConfig(LightningDataModule):
         dummy: bool = False,
     ):
         super().__init__()
+        import os, json
         self.train_config = train
+        self.metadata_map = {}
+        metadata_path = self.train_config.datapipeline.get("metadata_path", None)
+        if metadata_path and os.path.exists(metadata_path):
+            print(f"Loading metadata from {metadata_path}")
+            with open(metadata_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    item = json.loads(line)
+                    self.metadata_map[item['file_name']] = item['text']
+
         assert (
             "datapipeline" in self.train_config and "loader" in self.train_config
         ), "train config requires the fields `datapipeline` and `loader`"
@@ -57,6 +67,7 @@ class StableDataModuleFromConfig(LightningDataModule):
             print("#" * 100)
 
     def setup(self, stage: str) -> None:
+        import os
         print("Preparing datasets")
         if self.dummy:
             data_fn = create_dummy_dataset
@@ -64,6 +75,17 @@ class StableDataModuleFromConfig(LightningDataModule):
             data_fn = create_dataset
 
         self.train_datapipeline = data_fn(**self.train_config.datapipeline)
+
+        if self.metadata_map:
+            def inject_caption(item):
+                if isinstance(item, dict) and "path" in item:
+                    filename = os.path.basename(item["path"])
+                    item["txt"] = self.metadata_map.get(filename, "")
+                return item
+            
+            # 使用 map 算子注入 Caption
+            self.train_datapipeline = self.train_datapipeline.map(inject_caption)
+
         if self.val_config:
             self.val_datapipeline = data_fn(**self.val_config.datapipeline)
         if self.test_config:

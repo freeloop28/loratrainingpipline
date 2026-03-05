@@ -1,0 +1,42 @@
+# configs/training/sdxl_pokemon_finetune.yaml
+
+model:
+  base_learning_rate: 1.0e-04
+  target: sgm.models.diffusion.DiffusionEngine
+  params:
+    # 增加 LoRA 配置
+    lora_config:
+      rank: 32
+      alpha: 32
+      target_modules: ["CrossAttention", "Attention"]
+
+    conditioner_config:
+      target: sgm.modules.encoders.modules.GeneralConditioner
+      params:
+        emb_models:
+          - is_trainable: True
+            input_key: "txt"
+            target: sgm.modules.encoders.modules.FrozenCLIPEmbedder
+            params:
+              layer: "hidden"
+              layer_idx: 11
+          - is_trainable: True
+            input_key: "txt"
+            target: sgm.modules.encoders.modules.FrozenOpenCLIPEmbedder2
+            params:
+              arch: "ViT-bigG-14"
+              pretrained: "laion2b_s39b_b160k"
+              layer: "penultimate"
+              freeze: True
+
+data:
+  target: sgm.data.dataset.StableDataModuleFromConfig
+  params:
+    train:
+      datapipeline:
+        metadata_path: "dataset/pokemon-images/metadata.jsonl"
+        image_root: "dataset/pokemon-images"
+        resolution: 1024
+      loader:
+        batch_size: 1
+        num_workers: 4

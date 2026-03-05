@@ -38,6 +38,7 @@ class DiffusionEngine(pl.LightningModule):
         no_cond_log: bool = False,
         compile_model: bool = False,
         en_and_decode_n_samples_a_time: Optional[int] = None,
+        lora_config: Union[None, Dict, ListConfig, OmegaConf] = None,
     ):
         super().__init__()
         self.log_keys = log_keys
@@ -49,6 +50,19 @@ class DiffusionEngine(pl.LightningModule):
         self.model = get_obj_from_str(default(network_wrapper, OPENAIUNETWRAPPER))(
             model, compile_model=compile_model
         )
+
+        # LoRA 注入逻辑
+        self.lora_config = lora_config
+        if self.lora_config is not None:
+            from ..modules.lora import inject_lora, freeze_non_lora
+            print(f"Applying LoRA with config: {self.lora_config}")
+            rank = self.lora_config.get("rank", 4)
+            alpha = self.lora_config.get("alpha", 1.0)
+            target_modules = self.lora_config.get("target_modules", ["CrossAttention", "Attention"])
+            
+            self.model = inject_lora(self.model, rank=rank, alpha=alpha, target_replace_modules=target_modules)
+            freeze_non_lora(self.model)
+            print("LoRA applied and base model frozen.")
 
         self.denoiser = instantiate_from_config(denoiser_config)
         self.sampler = (

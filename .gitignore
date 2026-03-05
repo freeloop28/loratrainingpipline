@@ -1,16 +1,22 @@
-# extensions
-*.egg-info
-*.py[cod]
+# 忽略大模型权重
+checkpoints/
+models/
+*.safetensors
+*.ckpt
 
-# envs
-.pt13
-.pt2
+# 忽略数据集图片（只上传代码和元数据示例）
+dataset/images/
+dataset/pokemon-images/
+dataset/pokemon-blip-captions/
 
-# directories
-/checkpoints
-/dist
-/outputs
-/build
-/src
-/.vscode
-**/__pycache__/
+# 忽略环境与日志
+.venv/
+.generativemodels/
+logs/
+__pycache__/
+*.log
+
+# 忽略转换脚本临时文件
+extract_pokemon.py
+convert_dataset.py
+*.tmp
